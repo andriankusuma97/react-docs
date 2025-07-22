@@ -1,4 +1,4 @@
-import { useState, FormEvent, ChangeEvent } from "react";
+import { useState, type FormEvent, type ChangeEvent } from "react";
 
 
 function Product(){
@@ -14,9 +14,6 @@ function Product(){
     console.log(items, "<<<< masuk sini");
   };
 
-  function handleCount():number {
-    return 10
-  } ;
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     console.log(e);

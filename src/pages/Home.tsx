@@ -1,7 +1,4 @@
-import { useState, FormEvent, ChangeEvent } from "react";
-import { Link, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
-import Product from "./Product";
-import Documentation from "./Documentation";
+import {  Outlet, useNavigate } from "react-router-dom";
 
 function Home() {
   const navigate = useNavigate();
