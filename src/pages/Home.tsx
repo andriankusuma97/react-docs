@@ -1,0 +1,45 @@
+import { useState, FormEvent, ChangeEvent } from "react";
+import { Link, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import Product from "./Product";
+import Documentation from "./Documentation";
+
+function Home() {
+  const navigate = useNavigate();
+
+  const navbar = [
+    {title: "Product", route:""},
+    {title: "Docs", route:"docs"},
+    {title: "Scan", route:"cart"},
+  ]
+
+  const handleNavigate = (value : string) => {
+    
+    navigate('/' + value)
+  }
+  return(
+    <div className="min-h-screen bg-[#000000]">
+      <div className=" fixed top-44 left-6 flex flex-col gap-4">
+        {
+          navbar.map(el =>{
+            return(
+               <button
+                onClick={() => handleNavigate(el.route)}
+                className="text-white border-none bg-[#1b1b1b] rounded-full h-26 w-26 shadow-xl/80 shadow-slate-600/50 hover:shadow-xl/80 hover:shadow-indigo-500/50 hover:bg-indigo-900"
+                >
+                  {el.title}
+                </button>
+            )
+          })
+        }
+          
+       
+       
+        </div>
+      <div>
+        <Outlet/>
+      </div>
+    </div>
+  )
+}
+
+export default Home;
