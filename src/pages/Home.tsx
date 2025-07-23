@@ -14,8 +14,9 @@ function Home() {
     navigate('/' + value)
   }
   return(
-    <div className="min-h-screen bg-[#000000]">
-      <div className=" fixed top-44 left-6 flex flex-col gap-4">
+    <div className="min-h-screen ">
+      <div className="fixed sm:top-44 sm:left-6 sm:flex sm:flex-col sm:gap-4 sm:w-auto 
+                    top-0 m-auto  w-full flex flex-row gap-2 justify-center overflow-auto p-2 z-50">
         {
           navbar.map(el =>{
             return(
@@ -32,7 +33,7 @@ function Home() {
        
        
         </div>
-      <div>
+      <div className="sm:mt-12 mt-38">
         <Outlet/>
       </div>
     </div>

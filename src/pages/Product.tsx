@@ -23,8 +23,8 @@ function Product(){
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex  justify-center w-full ">
-        <label className="  p-10">
+      <form onSubmit={handleSubmit} className="flex  justify-center  ">
+        <label className="">
           <input
             className="border-none p-4 rounded-xl outline-none bg-gray-200 w-98 text-sky-800"
             placeholder="Please insert your input"
@@ -35,7 +35,7 @@ function Product(){
         </label>
       </form>
 
-      <div className=" w-full min-h-screen rounded-2xl mb-4 p-8 flex flex-col items-center">
+      <div className="  min-h-screen rounded-2xl mb-4 p-8 flex flex-col items-center">
         {items.map((e, index) => (
           <div className="bg-white mb-4 rounded-md w-52 p-2 text-sky-800" key={index}>{e}</div>
         ))}
