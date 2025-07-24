@@ -1,6 +1,7 @@
 import {  Outlet, useNavigate } from "react-router-dom";
 
 function Home() {
+  
   const navigate = useNavigate();
 
   const navbar = [
@@ -10,7 +11,6 @@ function Home() {
   ]
 
   const handleNavigate = (value : string) => {
-    
     navigate('/' + value)
   }
   return(
@@ -22,7 +22,7 @@ function Home() {
             return(
                <button
                 onClick={() => handleNavigate(el.route)}
-                className="text-white border-none bg-[#1b1b1b] rounded-full h-26 w-26 shadow-xl/80 shadow-slate-600/50 hover:shadow-xl/80 hover:shadow-indigo-500/50 hover:bg-indigo-900"
+                className="text-white border-none bg-[#1b1b1b] rounded-full h-26 w-26 shadow-xl/80 shadow-slate-600/50 hover:shadow-xl/80 hover:shadow-indigo-500/50 hover:bg-indigo-900 active:bg-indigo-700"
                 >
                   {el.title}
                 </button>
@@ -32,7 +32,7 @@ function Home() {
           
        
        
-        </div>
+      </div>
       <div className="sm:mt-12 mt-38">
         <Outlet/>
       </div>
