@@ -1,6 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 function ScanPdf() {
@@ -12,8 +11,90 @@ function ScanPdf() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [autoCropEnabled, setAutoCropEnabled] = useState<boolean>(true);
 
-  // Simple image processing function to enhance document appearance
+  // Auto crop detection function
+  const detectDocumentEdges = (canvas: HTMLCanvasElement): { x: number, y: number, width: number, height: number } | null => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Convert to grayscale and apply edge detection
+    const grayscale = new Uint8Array(width * height);
+    const edges = new Uint8Array(width * height);
+
+    // Convert to grayscale
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      grayscale[i / 4] = gray;
+    }
+
+    // Simple edge detection (Sobel-like)
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        
+        // Sobel X
+        const gx = 
+          -grayscale[(y - 1) * width + (x - 1)] +
+          grayscale[(y - 1) * width + (x + 1)] +
+          -2 * grayscale[y * width + (x - 1)] +
+          2 * grayscale[y * width + (x + 1)] +
+          -grayscale[(y + 1) * width + (x - 1)] +
+          grayscale[(y + 1) * width + (x + 1)];
+
+        // Sobel Y
+        const gy = 
+          -grayscale[(y - 1) * width + (x - 1)] +
+          -2 * grayscale[(y - 1) * width + x] +
+          -grayscale[(y - 1) * width + (x + 1)] +
+          grayscale[(y + 1) * width + (x - 1)] +
+          2 * grayscale[(y + 1) * width + x] +
+          grayscale[(y + 1) * width + (x + 1)];
+
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        edges[idx] = magnitude > 50 ? 255 : 0;
+      }
+    }
+
+    // Find document boundaries using edge information
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    let edgeCount = 0;
+
+    // Scan for edges to find document boundaries
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (edges[y * width + x] > 0) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+          edgeCount++;
+        }
+      }
+    }
+
+    // If we found enough edges and the detected area is reasonable
+    if (edgeCount > 100 && maxX > minX && maxY > minY) {
+      // Add some padding and ensure we don't go outside image bounds
+      const padding = Math.min(20, Math.min(minX, minY, width - maxX, height - maxY));
+      
+      return {
+        x: Math.max(0, minX - padding),
+        y: Math.max(0, minY - padding),
+        width: Math.min(width, maxX - minX + 2 * padding),
+        height: Math.min(height, maxY - minY + 2 * padding)
+      };
+    }
+
+    return null;
+  };
+
+  // Enhanced image processing function with auto crop
   const processImage = (img: HTMLImageElement): string => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -22,16 +103,46 @@ function ScanPdf() {
     canvas.width = img.width;
     canvas.height = img.height;
     
-    // Draw the image
+    // Draw the original image
     ctx.drawImage(img, 0, 0);
     
-    // Get image data for processing
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let cropArea = null;
+    
+    // Auto crop detection if enabled
+    if (autoCropEnabled) {
+      cropArea = detectDocumentEdges(canvas);
+    }
+
+    // Create final canvas
+    const finalCanvas = document.createElement('canvas');
+    const finalCtx = finalCanvas.getContext('2d');
+    if (!finalCtx) return img.src;
+
+    if (cropArea) {
+      // Use detected crop area
+      finalCanvas.width = cropArea.width;
+      finalCanvas.height = cropArea.height;
+      
+      // Draw cropped image
+      finalCtx.drawImage(
+        canvas,
+        cropArea.x, cropArea.y, cropArea.width, cropArea.height,
+        0, 0, cropArea.width, cropArea.height
+      );
+    } else {
+      // Use full image if no crop area detected
+      finalCanvas.width = canvas.width;
+      finalCanvas.height = canvas.height;
+      finalCtx.drawImage(canvas, 0, 0);
+    }
+    
+    // Apply image enhancement
+    const imageData = finalCtx.getImageData(0, 0, finalCanvas.width, finalCanvas.height);
     const data = imageData.data;
     
-    // Simple contrast and brightness adjustment for document scanning effect
-    const contrast = 1.2;
-    const brightness = 10;
+    // Enhanced contrast and brightness for document scanning
+    const contrast = 1.3;
+    const brightness = 15;
     
     for (let i = 0; i < data.length; i += 4) {
       // Apply contrast and brightness
@@ -41,9 +152,9 @@ function ScanPdf() {
     }
     
     // Put processed image data back
-    ctx.putImageData(imageData, 0, 0);
+    finalCtx.putImageData(imageData, 0, 0);
     
-    return canvas.toDataURL();
+    return finalCanvas.toDataURL();
   };
 
   const handleImage = async (file: File) => {
@@ -54,7 +165,7 @@ function ScanPdf() {
     
     img.onload = () => {
       try {
-        // Process the image to enhance document appearance
+        // Process the image with auto crop and enhancement
         const processedImageSrc = processImage(img);
         setCroppedSrc(prev => [...prev, processedImageSrc]);
         setIsProcessing(false);
@@ -79,7 +190,7 @@ function ScanPdf() {
       
       img.onload = () => {
         try {
-          // Process the captured image to enhance document appearance
+          // Process the captured image with auto crop and enhancement
           const processedImageSrc = processImage(img);
           setCroppedSrc(prev => [...prev, processedImageSrc]);
           setShowWebcam(false);
@@ -93,7 +204,7 @@ function ScanPdf() {
         }
       };
     }
-  }, [webcamRef]);
+  }, [webcamRef, autoCropEnabled]);
 
   const resetScanner = () => {
     setCroppedSrc([]);
@@ -268,6 +379,28 @@ function ScanPdf() {
           Document Scanner
         </h2>
         
+        {/* Auto Crop Toggle */}
+        <div className='mb-4 p-3 bg-gray-50 rounded-lg'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <label className='text-sm font-medium text-gray-700'>Auto Crop Detection</label>
+              <p className='text-xs text-gray-500'>Automatically detect and crop document edges</p>
+            </div>
+            <button
+              onClick={() => setAutoCropEnabled(!autoCropEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                autoCropEnabled ? 'bg-blue-600' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  autoCropEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+        
         {!croppedSrc.length && !showWebcam && (
           <div className='space-y-4'>
             {/* File Upload */}
@@ -327,7 +460,9 @@ function ScanPdf() {
         {isProcessing && (
           <div className='text-center py-4'>
             <div className='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500'></div>
-            <p className='mt-2 text-gray-600'>Processing document...</p>
+            <p className='mt-2 text-gray-600'>
+              {autoCropEnabled ? 'Detecting document edges...' : 'Processing document...'}
+            </p>
           </div>
         )}
 
@@ -383,6 +518,13 @@ function ScanPdf() {
                     />
                   </div>
                   
+                  {/* Auto crop indicator */}
+                  {autoCropEnabled && (
+                    <div className='absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity'>
+                      ✂️ Auto
+                    </div>
+                  )}
+                  
                   {/* Drag handle */}
                   <div className='absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-move'>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
@@ -423,6 +565,7 @@ function ScanPdf() {
               <div className='space-y-2'>
                 <h4 className='text-md font-medium text-gray-700'>
                   Preview - Document {selectedImageIndex + 1}
+                  {autoCropEnabled && <span className='text-xs text-blue-500 ml-2'>✂️ Auto Cropped</span>}
                 </h4>
                 <div className='bg-gray-100 rounded-lg p-2'>
                   <img 
